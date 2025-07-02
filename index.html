@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Hukum - Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #0f172a; /* Slate 900 */
+            --bg-card: #1e293b; /* Slate 800 */
+            --border-color: #334155; /* Slate 700 */
+            --text-primary: #f1f5f9; /* Slate 100 */
+            --text-secondary: #94a3b8; /* Slate 400 */
+            --accent-cyan: #22d3ee;
+            --accent-red: #fb7185; /* Rose 400 */
+            --accent-yellow: #facc15; /* Yellow 400 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+        }
+        .glow-shadow-cyan {
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2), 0 0 5px rgba(34, 211, 238, 0.1);
+        }
+        .glow-shadow-red {
+            box-shadow: 0 0 15px rgba(251, 113, 133, 0.2);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out;
+        }
+        .accordion-button.active + .accordion-content {
+            max-height: 1000px;
+        }
+        .form-checkbox:checked {
+            background-color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+        }
+        .form-input {
+            background-color: #334155;
+            border-color: #475569;
+            color: var(--text-primary);
+        }
+        .form-input::placeholder {
+            color: #64748b;
+        }
+        .form-input:focus {
+            --tw-ring-color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+        }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop { animation: pop 0.3s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+
+        #copy-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #22c55e;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+        }
+        #copy-notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
+                <i class="fa-solid fa-layer-group text-cyan-400"></i>
+                Hukum<span class="text-cyan-400">OS</span> Command Center
+            </h1>
+            <p class="text-md sm:text-lg text-slate-400 mt-3">Sistem Kalkulasi Pelanggaran Terpadu</p>
+        </header>
+
+        <!-- Main Dashboard -->
+        <div class="flex flex-col gap-6">
+
+            <!-- Result Display -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 glow-shadow-red">
+                    <span class="font-semibold text-rose-300 flex items-center"><i class="fa-solid fa-sack-dollar mr-3"></i>Denda Tertinggi</span>
+                    <span id="total-denda" class="text-5xl lg:text-6xl font-extrabold text-rose-400 mt-2 block tracking-tight">$0</span>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 glow-shadow-cyan">
+                    <span class="font-semibold text-cyan-300 flex items-center"><i class="fa-solid fa-gavel mr-3"></i>Total Kurungan</span>
+                    <span id="total-kurungan" class="text-5xl lg:text-6xl font-extrabold text-cyan-400 mt-2 block tracking-tight">0 Bulan</span>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 animate-fadeIn" style="animation-delay: 100ms;">
+                <div class="relative mb-4">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-4">
+                        <i class="fas fa-search text-slate-500"></i>
+                    </span>
+                    <input type="text" id="searchInput" placeholder="Cari dan tambahkan pasal..." class="w-full px-4 py-3 pl-12 rounded-lg focus:outline-none focus:ring-2 form-input">
+                </div>
+                
+                <div id="selected-pasal-tags" class="flex flex-wrap gap-2 min-h-[40px] mb-4 p-2 bg-slate-900/50 rounded-lg">
+                    <span id="no-pasal-tag" class="text-slate-500 italic px-2 py-1">Belum ada pasal yang ditambahkan.</span>
+                </div>
+
+                <!-- Text to be Copied Preview -->
+                <div class="mb-4">
+                    <label class="text-sm font-semibold text-slate-400">Pratinjau Teks untuk Disalin:</label>
+                    <div id="copy-preview" class="mt-1 p-3 bg-slate-900/50 rounded-lg text-slate-300 text-sm min-h-[40px] border border-slate-700">
+                        <span class="italic text-slate-500">Pilih pasal untuk melihat pratinjau.</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 items-center pt-4 border-t border-slate-700">
+                    <label for="dpo-checkbox" class="flex items-center cursor-pointer bg-yellow-500/10 border border-yellow-400/30 px-4 py-2 rounded-lg w-full sm:w-auto">
+                        <input type="checkbox" id="dpo-checkbox" class="form-checkbox h-5 w-5 rounded border-slate-500 text-cyan-500 focus:ring-cyan-500">
+                        <span class="ml-3 font-semibold text-yellow-300">Tersangka DPO?</span>
+                    </label>
+                    <div class="flex-grow"></div>
+                    <div class="flex gap-3 w-full sm:w-auto">
+                        <button id="copy-button" class="w-full sm:w-auto flex-1 bg-green-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-green-700 transition duration-300">
+                            <i class="fas fa-copy mr-2"></i>Salin
+                        </button>
+                         <button id="reset-button" class="w-full sm:w-auto flex-1 bg-cyan-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-cyan-700 transition duration-300">
+                            <i class="fas fa-sync-alt mr-2"></i>Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pasal Database -->
+            <div class="animate-fadeIn" style="animation-delay: 200ms;">
+                 <h2 class="text-xl font-bold text-slate-300 mb-4 flex items-center"><i class="fa-solid fa-database mr-3"></i>Referensi Pasal</h2>
+                <div id="pasal-list" class="space-y-3">
+                    <!-- Daftar pasal akan dimasukkan di sini oleh JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <footer class="text-center mt-12 py-4 border-t border-slate-800">
+            <p class="text-sm text-slate-500">Created by Edwin A. Lewis</p>
+        </footer>
+    </div>
+    
+    <div id="copy-notification">
+        <i class="fas fa-check-circle mr-2"></i>Hasil telah disalin!
+    </div>
+
+    <script>
+        // Data and DOM Elements
+        const pasalData = {
+            "Pelanggaran Ringan": [
+                { id: "1.1", desc: "Tidak Membawa Kartu Identitas", denda: 15000, penjara: 5 },
+                { id: "1.2", desc: "Penganiayaan / Melukai Warga", denda: 5000, penjara: 5 },
+                { id: "1.3", desc: "Penghinaan Terhadap Warga", denda: 10000, penjara: 5 },
+                { id: "1.4", desc: "Mengganggu Ketertiban Umum / Provokator", denda: 5000, penjara: 5 },
+                { id: "1.5", desc: "Membawa Minuman Beralkohol", denda: 2500, penjara: 5 },
+                { id: "1.6", desc: "Telanjang / Memakai Topeng Di Area Publik", denda: 10000, penjara: 5 },
+                { id: "1.7", desc: "Penipuan / Memberikan Informasi Palsu", denda: 20000, penjara: 5 },
+                { id: "1.8", desc: "Mabuk di Area Publik / Mabuk Saat Mengemudi", denda: 25000, penjara: 5 },
+                { id: "1.9", desc: "Pencemaran Nama Baik / Perbuatan Tidak Menyenangkan", denda: 10000, penjara: 5 },
+                { id: "1.10", desc: "Mencuri / Merusak Kendaraan", denda: 20000, penjara: 5 },
+                { id: "1.11", desc: "Perjudian / Taruhan", denda: 15000, penjara: 5 },
+                { id: "1.12", desc: "Pembobolan / Pencurian Rumah", denda: 50000, penjara: 10 }
+            ],
+            "Pelanggaran Sedang": [
+                { id: "2.1", desc: "Upaya Korupsi / Melawan Petugas / Menghilangkan Barang Bukti", denda: 25000, penjara: 10 },
+                { id: "2.2", desc: "Penyalahgunaan Atribut Kepolisian", denda: 50000, penjara: 20 },
+                { id: "2.3", desc: "Berada di Zona Merah / Zona Terlarang", denda: 10000, penjara: 5 },
+                { id: "2.4", desc: "Kepemilikan Barang Ilegal Ringan <50", denda: 10000, penjara: 5 },
+                { id: "2.5", desc: "Kepemilikan Barang Ilegal Ringan 50 - 168", denda: 25000, penjara: 5 },
+                { id: "2.6", desc: "Kepemilikan Barang Ilegal Ringan >168", denda: 50000, penjara: 10 },
+                { id: "2.7", desc: "Kepemilikan Barang Ilegal Berat <14", denda: 50000, penjara: 5 },
+                { id: "2.8", desc: "Kepemilikan Barang Ilegal Berat 14 - 70", denda: 75000, penjara: 8 },
+                { id: "2.9", desc: "Kepemilikan Barang Ilegal Berat >70", denda: 100000, penjara: 10 },
+                { id: "2.10", desc: "Kepemilikan Uang Kotor <500.000", denda: 25000, penjara: 5 },
+                { id: "2.11", desc: "Kepemilikan Uang Kotor 500.000 - 1.000.000", denda: 50000, penjara: 8 },
+                { id: "2.12", desc: "Kepemilikan Uang Kotor >1.000.000", denda: 100000, penjara: 10 },
+                { id: "2.13", desc: "Penyalahgunaan Barang Ilegal (Pemakai / Pecandu)", denda: 25000, penjara: 15 },
+                { id: "2.14", desc: "Tidak Memiliki Lisensi Senjata", denda: 25000, penjara: 5 }
+            ],
+            "Pelanggaran Berat": [
+                { id: "3.1", desc: "Upaya Pembunuhan Terhadap Warga", denda: 15000, penjara: 5 },
+                { id: "3.2", desc: "Jual Beli Barang / Senjata Ilegal (Pengedar)", denda: 50000, penjara: 30, related: ["2.6", "2.9", "2.12"] },
+                { id: "3.3", desc: "Pembunuhan Terhadap Warga", denda: 100000, penjara: 25 },
+                { id: "3.4", desc: "Penodongan / Pembegalan Terhadap Warga", denda: 5000, penjara: 10 },
+                { id: "3.5", desc: "Penodongan / Pembegalan Terhadap Petugas", denda: 10000, penjara: 10 },
+                { id: "3.6", desc: "Kepemilikan Senjata Ilegal", denda: 50000, penjara: 5 },
+                { id: "3.7", desc: "Penyanderaan / Penculikan Warga", denda: 100000, penjara: 15 },
+                { id: "3.8", desc: "Kejahatan Tidak Disengaja", denda: 25000, penjara: 5 },
+                { id: "3.9", desc: "Penembakan Terhadap Warga", denda: 50000, penjara: 10 },
+                { id: "3.10", desc: "Penembakan Terhadap Petugas", denda: 100000, penjara: 10 },
+                { id: "3.11", desc: "Perampokan di Warung", denda: 75000, penjara: 10 },
+                { id: "3.12", desc: "Perampokan di Bank / Jewelry", denda: 100000, penjara: 15 },
+                { id: "3.13", desc: "Pembocoran Informasi / Rahasia Negara", denda: 150000, penjara: 30 },
+                { id: "3.14", desc: "Kepemilikan Senjata Negara", denda: 500000, penjara: 15 },
+                { id: "3.15", desc: "Penyalahgunaan Teknologi", denda: 50000, penjara: 20 }
+            ],
+             "Undang Undang Lalu Lintas": [
+                { id: "4.1", desc: "Tidak Melengkapi Atribut Berkendara", denda: 10000, penjara: 0, hukumanLain: "-" },
+                { id: "4.2", desc: "Berkendara Tidak Sesuai Medan", denda: 25000, penjara: 0, hukumanLain: "-" },
+                { id: "4.3", desc: "Memodifikasi Kendaraan Tidak Sesuai", denda: 50000, penjara: 0, hukumanLain: "-" },
+                { id: "4.4", desc: "Parkir Ilegal/Trotoar", denda: 5000, penjara: 0, hukumanLain: "-" },
+                { id: "4.5", desc: "Ugal Ugalan Saat Berkendara", denda: 10000, penjara: 0, hukumanLain: "-" },
+                { id: "4.6", desc: "Menghambat Arus Lalu Lintas", denda: 10000, penjara: 0, hukumanLain: "-" },
+                { id: "4.7", desc: "Tidak Mematuhi Rambu Lalu Lintas", denda: 10000, penjara: 0, hukumanLain: "-" },
+                { id: "4.8", desc: "Mengemudi Tanpa SIM", denda: 10000, penjara: 0, hukumanLain: "Kendaraan Disita" },
+                { id: "4.9", desc: "Tidak Memiliki STNK/BPKB", denda: 10000, penjara: 0, hukumanLain: "Kendaraan Disita" },
+                { id: "4.10", desc: "Melebihi Kecepatan di Area Perumahan (80KMH)", denda: 50000, penjara: 0, hukumanLain: "-" },
+                { id: "4.11", desc: "Melebihi Kecepatan di Area Perkotaan (150KMH)", denda: 10000, penjara: 0, hukumanLain: "-" },
+                { id: "4.12", desc: "Melebihi Kecepatan di Area Tol (200KMH)", denda: 15000, penjara: 0, hukumanLain: "-" }
+            ]
+        };
+        const allPasal = Object.values(pasalData).flat();
+        let selectedPasalIds = new Set();
+
+        const totalDendaEl = document.getElementById('total-denda');
+        const totalKurunganEl = document.getElementById('total-kurungan');
+        const searchInput = document.getElementById('searchInput');
+        const pasalListContainer = document.getElementById('pasal-list');
+        const selectedTagsContainer = document.getElementById('selected-pasal-tags');
+        const noPasalTag = document.getElementById('no-pasal-tag');
+        const dpoCheckbox = document.getElementById('dpo-checkbox');
+        const resetButton = document.getElementById('reset-button');
+        const copyButton = document.getElementById('copy-button');
+        const copyPreviewEl = document.getElementById('copy-preview');
+
+        // Main Functions
+        function calculateTotals() {
+            let maxDenda = 0;
+            let totalKurungan = 0;
+
+            selectedPasalIds.forEach(pasalId => {
+                const pasal = allPasal.find(p => p.id === pasalId);
+                if (pasal) {
+                    if (pasal.denda > maxDenda) maxDenda = pasal.denda;
+                    totalKurungan += pasal.penjara;
+                }
+            });
+
+            if (totalKurungan > 60) totalKurungan = 60;
+            if (dpoCheckbox.checked) totalKurungan *= 2;
+            
+            updateDisplay(totalDendaEl, `$${maxDenda.toLocaleString('id-ID')}`);
+            updateDisplay(totalKurunganEl, `${totalKurungan} Bulan`);
+        }
+
+        function updateDisplay(element, newValue) {
+            if (element.textContent !== newValue) {
+                element.textContent = newValue;
+                element.classList.add('animate-pop');
+                element.addEventListener('animationend', () => element.classList.remove('animate-pop'), { once: true });
+            }
+        }
+
+        function renderPasalList(filter = '') {
+            pasalListContainer.innerHTML = '';
+            const filterLower = filter.toLowerCase();
+            
+            for (const category in pasalData) {
+                const pasalInCategory = pasalData[category];
+                const filteredPasal = filter ? pasalInCategory.filter(p => p.desc.toLowerCase().includes(filterLower) || p.id.includes(filterLower)) : pasalInCategory;
+
+                if (filteredPasal.length === 0) continue;
+
+                const categoryContainer = document.createElement('div');
+                categoryContainer.className = 'bg-slate-800 rounded-lg overflow-hidden border border-slate-700';
+                
+                const button = document.createElement('button');
+                button.className = 'accordion-button w-full flex justify-between items-center p-4 text-left font-semibold text-white bg-slate-900/50 hover:bg-slate-700/50 transition';
+                button.innerHTML = `<span>${category}</span><i class="fas fa-chevron-down transition-transform duration-300"></i>`;
+                
+                const content = document.createElement('div');
+                content.className = 'accordion-content p-4 pt-2 space-y-3';
+
+                filteredPasal.forEach(pasal => {
+                    const isChecked = selectedPasalIds.has(pasal.id);
+                    const div = document.createElement('div');
+                    div.className = `flex items-center justify-between p-3 rounded-md transition cursor-pointer ${isChecked ? 'bg-cyan-500/20' : 'bg-slate-900/50 hover:bg-slate-700/50'}`;
+                    div.dataset.pasalId = pasal.id;
+                    
+                    div.innerHTML = `
+                        <div class="flex items-center flex-grow">
+                            <i class="fa-solid ${isChecked ? 'fa-square-check text-cyan-400' : 'fa-square text-slate-500'} text-xl mr-4"></i>
+                            <div class="text-sm">
+                                <span class="font-bold text-slate-100">Pasal ${pasal.id}:</span>
+                                <span class="text-slate-300">${pasal.desc}</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-sm flex-shrink-0 ml-4">
+                            <p class="text-rose-400 font-medium">$${pasal.denda.toLocaleString('id-ID')}</p>
+                            <p class="text-cyan-400 font-medium">${pasal.penjara > 0 ? `${pasal.penjara} Bln` : (pasal.hukumanLain || '-')}</p>
+                        </div>
+                    `;
+                    content.appendChild(div);
+                });
+
+                categoryContainer.appendChild(button);
+                categoryContainer.appendChild(content);
+                pasalListContainer.appendChild(categoryContainer);
+
+                if (filter) button.classList.add('active');
+
+                button.addEventListener('click', () => {
+                    button.classList.toggle('active');
+                    button.querySelector('i').classList.toggle('rotate-180');
+                });
+            }
+            addPasalClickListeners();
+        }
+
+        function renderSelectedTags() {
+            selectedTagsContainer.innerHTML = '';
+            if (selectedPasalIds.size === 0) {
+                selectedTagsContainer.appendChild(noPasalTag);
+                return;
+            }
+            
+            selectedPasalIds.forEach(pasalId => {
+                const pasal = allPasal.find(p => p.id === pasalId);
+                if (!pasal) return;
+                
+                const tag = document.createElement('div');
+                tag.className = 'flex items-center bg-cyan-500/10 text-cyan-300 text-sm font-semibold px-3 py-1 rounded-full animate-fadeIn';
+                tag.innerHTML = `
+                    <span>Pasal ${pasal.id}</span>
+                    <button data-pasal-id="${pasal.id}" class="remove-tag-btn ml-2 text-cyan-500 hover:text-white">&times;</button>
+                `;
+                selectedTagsContainer.appendChild(tag);
+            });
+        }
+        
+        function updateCopyPreview() {
+            const pasalDescriptions = Array.from(selectedPasalIds).map(id => {
+                const pasal = allPasal.find(p => p.id === id);
+                return pasal ? pasal.desc.toUpperCase() : '';
+            }).filter(Boolean);
+
+            if (pasalDescriptions.length === 0) {
+                copyPreviewEl.innerHTML = `<span class="italic text-slate-500">Pilih pasal untuk melihat pratinjau.</span>`;
+            } else {
+                copyPreviewEl.textContent = pasalDescriptions.join(', ');
+            }
+        }
+
+        // Event Handlers
+        function handlePasalClick(e) {
+            const target = e.target.closest('[data-pasal-id]');
+            if (!target) return;
+            
+            const pasalId = target.dataset.pasalId;
+            if (selectedPasalIds.has(pasalId)) {
+                selectedPasalIds.delete(pasalId);
+            } else {
+                selectedPasalIds.add(pasalId);
+            }
+            
+            updateUI();
+        }
+
+        function handleRemoveTag(e) {
+            if (e.target.classList.contains('remove-tag-btn')) {
+                const pasalId = e.target.dataset.pasalId;
+                selectedPasalIds.delete(pasalId);
+                updateUI();
+            }
+        }
+        
+        function updateUI() {
+            calculateTotals();
+            renderSelectedTags();
+            updateCopyPreview();
+            renderPasalList(searchInput.value);
+        }
+
+        function resetAll() {
+            selectedPasalIds.clear();
+            dpoCheckbox.checked = false;
+            searchInput.value = '';
+            updateUI();
+        }
+
+        function copyResultsToClipboard() {
+            const textToCopy = copyPreviewEl.textContent;
+
+            if (selectedPasalIds.size === 0) return;
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showCopyNotification();
+            } catch (err) { console.error('Gagal menyalin: ', err); }
+            document.body.removeChild(textArea);
+        }
+
+        function showCopyNotification() {
+            const notification = document.getElementById('copy-notification');
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 2000);
+        }
+
+        // Event Listeners
+        function addPasalClickListeners() {
+            pasalListContainer.querySelectorAll('[data-pasal-id]').forEach(item => {
+                item.addEventListener('click', handlePasalClick);
+            });
+        }
+        
+        searchInput.addEventListener('input', () => renderPasalList(searchInput.value));
+        dpoCheckbox.addEventListener('change', calculateTotals);
+        resetButton.addEventListener('click', resetAll);
+        copyButton.addEventListener('click', copyResultsToClipboard);
+        selectedTagsContainer.addEventListener('click', handleRemoveTag);
+
+        // Initial Load
+        updateUI();
+    </script>
+</body>
+</html>
